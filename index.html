@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>영업지원 신청 시스템</title>
+<style>
+  :root{
+    --navy:#1F3864; --navy-light:#2E5C8A; --bg:#F5F7FA; --card-bg:#FFFFFF;
+    --border:#E1E6EC; --text:#1A1F29; --muted:#6B7280; --warn-bg:#FCE9E9;
+    --warn-text:#C00000; --ok:#1F7A4D; --gold:#B98B2E; --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Noto Sans KR","Malgun Gothic",Arial,sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased;}
+  header{background:var(--navy); color:#fff; padding:28px 24px 22px;}
+  header h1{margin:0 0 4px; font-size:22px; font-weight:700;}
+  header p{margin:0; font-size:13.5px; color:#C9D6E8;}
+  main{max-width:980px; margin:0 auto; padding:28px 20px 80px;}
+  .section-label{font-size:13px; font-weight:700; color:var(--navy-light); letter-spacing:.4px; margin:28px 0 14px; display:flex; align-items:center; justify-content:space-between;}
+  .section-label:first-child{margin-top:0;}
+  .section-label .hint{font-size:11.5px; font-weight:500; color:var(--muted);}
+
+  .panel{background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+  .row4{display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px;}
+  @media (max-width:700px){ .row2,.row3,.row4{grid-template-columns:1fr;} }
+  .field{margin-bottom:13px;}
+  .field label{display:block; font-size:12.5px; font-weight:700; margin-bottom:5px;}
+  .field label .req{color:var(--warn-text);}
+  .field label .opt{color:var(--muted); font-weight:500;}
+  .field input, .field textarea, .field select{
+    width:100%; border:1px solid var(--border); border-radius:7px; padding:9px 10px;
+    font-size:13.5px; font-family:inherit; background:#fafbfc;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{outline:none; border-color:var(--navy-light); background:#fff;}
+
+  /* 날짜 필드 (텍스트 + 달력) */
+  .date-field{display:flex; gap:6px;}
+  .date-field input[type=text]{flex:1;}
+  .date-field .cal-btn{
+    flex-shrink:0; width:38px; border:1px solid var(--border); border-radius:7px; background:#fff;
+    cursor:pointer; font-size:15px; position:relative;
+  }
+  .date-field input[type=date]{
+    position:absolute; opacity:0; width:38px; height:36px; cursor:pointer;
+  }
+  .date-wrap{position:relative;}
+
+  .grid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px;}
+  @media (max-width:600px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:18px; cursor:pointer; transition:box-shadow .15s, transform .15s, border-color .15s;}
+  .card:hover{box-shadow:0 4px 14px rgba(31,56,100,.12); transform:translateY(-2px); border-color:var(--navy-light);}
+  .card .icon{font-size:24px; margin-bottom:8px; display:block;}
+  .card h3{margin:0 0 4px; font-size:15.5px; font-weight:700;}
+  .card p{margin:0; font-size:12.5px; color:var(--muted); line-height:1.5;}
+  .card .sub{margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;}
+  .card .sub button{font-size:12px; padding:6px 10px; border-radius:6px; border:1px solid var(--navy-light); background:#fff; color:var(--navy-light); cursor:pointer; font-weight:600;}
+  .card .sub button:hover{background:var(--navy-light); color:#fff;}
+
+  .lead-note{background:#fff; border:1px solid var(--border); border-left:4px solid var(--navy-light); border-radius:8px; padding:14px 16px; font-size:13px; color:var(--muted); margin-bottom:6px;}
+  .lead-note b{color:var(--navy);}
+
+  /* 참석자 테이블 */
+  .ptable-wrap{overflow-x:auto;}
+  table.ptable{width:100%; border-collapse:collapse; font-size:13px;}
+  table.ptable th{
+    background:#EEF2F8; color:var(--navy); font-size:11.5px; font-weight:700; text-align:left;
+    padding:8px 8px; border:1px solid var(--border);
+  }
+  table.ptable td{border:1px solid var(--border); padding:4px;}
+  table.ptable input, table.ptable select{
+    width:100%; border:none; padding:7px 6px; font-size:13px; font-family:inherit; background:transparent;
+  }
+  table.ptable input:focus, table.ptable select:focus{outline:2px solid var(--navy-light); background:#fff;}
+  table.ptable input[readonly]{color:var(--muted); background:#F2F4F7;}
+  table.ptable td.col-del{width:36px; text-align:center;}
+  .ptable-row-del{border:none; background:none; color:var(--muted); cursor:pointer; font-size:14px;}
+  .ptable-row-del:hover{color:var(--warn-text);}
+  .ptable-actions{display:flex; gap:8px; margin-top:10px; align-items:center;}
+  .ptable-hint{font-size:11.5px; color:var(--muted); margin-top:6px;}
+
+  .add-leg-row{display:flex; justify-content:center; margin:18px 0 30px;}
+  .submit-bar{position:sticky; bottom:0; background:linear-gradient(180deg, rgba(245,247,250,0) 0%, var(--bg) 35%); padding:18px 0 6px; display:flex; justify-content:flex-end; gap:10px;}
+  .btn{border:none; border-radius:8px; padding:11px 20px; font-size:14px; font-weight:700; cursor:pointer;}
+  .btn-primary{background:var(--navy); color:#fff;}
+  .btn-primary:hover{background:var(--navy-light);}
+  .btn-primary:disabled{background:#B9C3D1; cursor:not-allowed;}
+  .btn-ghost{background:#fff; border:1px solid var(--border); color:var(--muted);}
+  .btn-ghost:hover{background:#f3f4f6;}
+  .btn-sm{font-size:12px; padding:7px 12px; border-radius:7px;}
+  .btn-outline{background:#fff; border:1.5px dashed var(--navy-light); color:var(--navy-light); font-weight:700; cursor:pointer;}
+  .btn-outline:hover{background:#EDF1F7;}
+
+  .timeline{margin-top:6px;}
+  .empty-timeline{border:1.5px dashed var(--border); border-radius:10px; padding:26px; text-align:center; color:var(--muted); font-size:13px;}
+  .leg-item{display:flex; gap:14px; align-items:flex-start; background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px;}
+  .leg-num{width:28px; height:28px; border-radius:50%; background:var(--navy); color:#fff; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .leg-body{flex:1;}
+  .leg-title{font-size:14px; font-weight:700; margin:0 0 3px;}
+  .leg-meta{font-size:12px; color:var(--muted); line-height:1.6;}
+  .leg-tag{display:inline-block; font-size:10.5px; font-weight:700; padding:2px 6px; border-radius:5px; margin-left:6px; vertical-align:middle;}
+  .leg-tag.warn{background:var(--warn-bg); color:var(--warn-text);}
+  .leg-remove{border:none; background:none; color:var(--muted); cursor:pointer; font-size:16px; padding:2px 6px;}
+  .leg-remove:hover{color:var(--warn-text);}
+  .connector{width:2px; flex-shrink:0; background:var(--border); margin:0 13px; height:14px;}
+  .seg-list{margin-top:6px; padding-left:4px;}
+  .seg-list .seg-row{font-size:11.8px; color:var(--text); padding:2px 0;}
+  .seg-list .seg-row b{color:var(--navy-light);}
+
+  .overlay{position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; padding:20px; z-index:50;}
+  .overlay.active{display:flex;}
+  .modal{background:#fff; border-radius:14px; width:100%; max-width:600px; max-height:88vh; overflow-y:auto; box-shadow:0 20px 50px rgba(0,0,0,.25);}
+  .modal-header{padding:20px 22px 14px; border-bottom:1px solid var(--border); position:sticky; top:0; background:#fff; display:flex; justify-content:space-between; align-items:center;}
+  .modal-header h2{margin:0; font-size:17px; color:var(--navy);}
+  .modal-header button{border:none; background:none; font-size:20px; cursor:pointer; color:var(--muted); line-height:1;}
+  .modal-body{padding:18px 22px 6px;}
+  .modal-footer{padding:14px 22px 22px; display:flex; gap:10px; justify-content:flex-end;}
+
+  .ap-add-box{background:#FBF8F0; border:1px solid #EAD9AE; border-radius:9px; padding:12px 14px; margin-bottom:18px;}
+  .ap-add-title{font-size:12.5px; font-weight:700; color:var(--gold); margin-bottom:8px;}
+  .ap-add-title .opt{color:var(--muted); font-weight:500; font-size:11.5px;}
+  .ap-add-row{display:grid; grid-template-columns:100px 110px 1fr 1fr 1fr auto; gap:6px; align-items:center;}
+  @media (max-width:680px){ .ap-add-row{grid-template-columns:1fr 1fr;} }
+  .ap-add-row input, .ap-add-row select{
+    border:1px solid var(--border); border-radius:6px; padding:7px 8px; font-size:12.5px; font-family:inherit; background:#fff;
+  }
+  .ap-add-row input[readonly]{color:var(--muted); background:#F2F4F7;}
+  .ap-add-row button{white-space:nowrap;}
+
+  .check-list{border:1px solid var(--border); border-radius:8px; padding:8px 10px; max-height:130px; overflow-y:auto; background:#fafbfc; display:flex; flex-wrap:wrap; gap:2px 14px; align-content:flex-start;}
+  .check-list label{display:inline-flex; align-items:center; gap:5px; font-size:12px; padding:3px 0; cursor:pointer; flex:0 0 auto; white-space:nowrap;}
+  .check-list .empty{font-size:12px; color:var(--muted); width:100%;}
+  .check-list-actions{display:flex; gap:8px; margin:6px 0 0; align-items:center;}
+  .check-list-actions button{font-size:11px; padding:4px 9px; border-radius:5px; border:1px solid var(--border); background:#fff; cursor:pointer; color:var(--muted);}
+  .check-list-actions .count{font-size:11.5px; font-weight:700; color:var(--navy-light); margin-left:auto;}
+  .field-row-label{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:5px;}
+  .field-row-label .count-badge{font-size:11.5px; font-weight:700; color:var(--navy-light);}
+
+  .segment-builder{margin-top:6px; padding:14px; background:#F8FAFD; border:1px solid var(--border); border-radius:9px;}
+  .segment-builder h4{margin:0 0 10px; font-size:13px; color:var(--navy);}
+  .segment-card{background:#fff; border:1px solid var(--border); border-radius:8px; padding:12px 12px 10px; margin-bottom:10px; position:relative;}
+  .segment-card .seg-label{font-size:12px; font-weight:700; color:var(--navy-light); margin-bottom:8px;}
+  .segment-card .seg-remove{position:absolute; top:8px; right:10px; border:none; background:none; color:var(--muted); cursor:pointer; font-size:14px;}
+  .segment-card .seg-remove:hover{color:var(--warn-text);}
+
+  .alert-overlay{position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:100; padding:20px;}
+  .alert-overlay.active{display:flex;}
+  .alert-box{background:#fff; border-radius:14px; max-width:400px; width:100%; padding:26px 24px 22px; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,.3);}
+  .alert-box .emoji{font-size:34px; margin-bottom:8px;}
+  .alert-box h3{margin:0 0 8px; font-size:16.5px;}
+  .alert-box.warn h3{color:var(--warn-text);}
+  .alert-box.ok h3{color:var(--ok);}
+  .alert-box p{margin:0 0 18px; font-size:13.5px; color:var(--muted); line-height:1.6; text-align:left;}
+  .alert-box .contact{background:var(--warn-bg); border-radius:8px; padding:10px 12px; font-size:13px; color:var(--warn-text); font-weight:700; margin-bottom:18px;}
+  .alert-box button{background:var(--navy); color:#fff; border:none; border-radius:8px; padding:10px 24px; font-size:13.5px; font-weight:700; cursor:pointer;}
+  .alert-box.warn button{background:var(--warn-text);}
+  .leg-warn-list{list-style:none; padding:0; margin:0 0 14px;}
+  .leg-warn-list li{font-size:12.5px; color:var(--text); padding:4px 0; border-bottom:1px solid var(--border);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>영업지원 신청 시스템</h1>
+  <p>남산리더십센터 · 차량/헬기 배차 · VIP식당 — 참석자를 한 번 등록해두고 각 예약에서 골라 쓸 수 있습니다</p>
+</header>
+
+<main>
+  <div class="lead-note">
+    <b>신청 마감 안내</b> — 모든 일정은 이용일 기준 <b>D-5일 전</b>까지 접수해 주세요.
+    D-5일이 지난 일정이 포함되면, 제출 직후 안내 팝업이 뜨며 <b>교육서비스센터 최부경 선임</b>에게 별도로 연락해 주셔야 합니다.
+  </div>
+
+  <!-- 1. 기본 정보 -->
+  <p class="section-label">1. 기본 정보</p>
+  <div class="panel">
+    <div class="row3">
+      <div class="field"><label>요청자 성명 <span class="req">*</span></label><input type="text" id="b_requesterName" placeholder="예: 최부경"></div>
+      <div class="field"><label>요청자 소속 <span class="req">*</span></label><input type="text" id="b_requesterDept" placeholder="예: 교육서비스센터"></div>
+      <div class="field"><label>요청자 연락처 <span class="req">*</span></label><input type="text" id="b_requesterContact" placeholder="휴대폰/사내번호"></div>
+    </div>
+    <div class="field"><label>미팅 목적 <span class="req">*</span></label><input type="text" id="b_purpose" placeholder="예: 고객사 미팅 후 석식"></div>
+    <div class="row3">
+      <div class="field"><label>미팅 일정 <span class="req">*</span></label>
+        <div class="date-wrap">
+          <div class="date-field">
+            <input type="text" id="b_date_text" placeholder="2026년 01월 01일(월)">
+            <div class="cal-btn">📅<input type="date" id="b_date_hidden"></div>
+          </div>
+        </div>
+      </div>
+      <div class="field"><label>미팅 시작 시간</label><input type="text" id="b_startTime" placeholder="예: 16:00"></div>
+      <div class="field"><label>미팅 종료 시간 <span class="opt">(없으면 비워두세요)</span></label><input type="text" id="b_endTime" placeholder="예: 16:30"></div>
+    </div>
+    <div class="field" style="max-width:200px;"><label>참석 인원 <span class="req">*</span></label><input type="number" id="b_headcount" min="1" placeholder="예: 4"></div>
+  </div>
+
+  <!-- 2. 참석자 정보 -->
+  <p class="section-label">2. 참석자 정보 <span class="hint">엑셀에서 복사한 내용을 셀에 바로 붙여넣기(Ctrl+V) 할 수 있습니다</span></p>
+  <div class="panel">
+    <div class="ptable-wrap">
+      <table class="ptable" id="ptable">
+        <thead>
+          <tr>
+            <th style="width:110px;">구분</th>
+            <th style="width:130px;">회사명</th>
+            <th>이름</th>
+            <th>소속</th>
+            <th>직책</th>
+            <th class="col-del"></th>
+          </tr>
+        </thead>
+        <tbody id="ptableBody"></tbody>
+      </table>
+    </div>
+    <div class="ptable-actions">
+      <button class="btn-outline btn-sm" onclick="addParticipantRow()">+ 행 추가</button>
+      <span class="ptable-hint">"구분"에서 생산기술원을 선택하면 회사명이 자동으로 "LG전자"로 입력됩니다. 고객사는 회사명을 직접 입력하세요.</span>
+    </div>
+  </div>
+
+  <!-- 3. 예약 -->
+  <p class="section-label">3. 예약 추가 — 항목을 선택하면 신청서가 열립니다</p>
+  <div class="grid">
+    <div class="card">
+      <span class="icon">🏛️</span>
+      <h3>남산리더십센터</h3>
+      <p>식사 예약 또는 회의실 예약</p>
+      <div class="sub">
+        <button onclick="openModal('nslc_meal')">식사 예약</button>
+        <button onclick="openModal('nslc_room')">회의실 예약</button>
+      </div>
+    </div>
+    <div class="card" onclick="openModal('transport')">
+      <span class="icon">🚗🚁</span><h3>차량 / 헬기 배차</h3><p>구간마다 방식(차량/헬기)과 탑승 인원을 지정해서 신청</p>
+    </div>
+    <div class="card" onclick="openModal('vip_restaurant')">
+      <span class="icon">🍽️</span><h3>VIP식당</h3><p>VIP식당 이용</p>
+    </div>
+  </div>
+
+  <!-- 4. 타임라인 -->
+  <p class="section-label">4. 현재까지 추가된 일정</p>
+  <div class="timeline" id="timeline">
+    <div class="empty-timeline" id="emptyTimeline">아직 추가된 일정이 없습니다. 위 카드를 눌러 일정을 추가해 주세요.</div>
+  </div>
+
+  <div class="submit-bar">
+    <button class="btn btn-ghost" onclick="clearAllLegs()">전체 초기화</button>
+    <button class="btn btn-primary" id="submitAllBtn" onclick="submitAllLegs()" disabled>전체 일정 제출하기 (0건)</button>
+  </div>
+</main>
+
+<!-- ===== 일정 입력 Modal ===== -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">신청서</h2>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody">
+      <!-- 이 예약에만 추가로 참석하는 사람 등록 (참석자 정보 표에도 함께 등록됨) -->
+      <div class="ap-add-box" id="apAddBox">
+        <div class="ap-add-title">+ 참석자 추가 <span class="opt">(이 신청에만 추가로 오는 사람이 있으면 여기서 바로 등록하세요)</span></div>
+        <div class="ap-add-row">
+          <select id="ap_type" onchange="onApTypeChange()">
+            <option value="생산기술원">생산기술원</option>
+            <option value="고객사">고객사</option>
+          </select>
+          <input type="text" id="ap_company" placeholder="회사명" value="LG전자" readonly>
+          <input type="text" id="ap_name" placeholder="이름">
+          <input type="text" id="ap_dept" placeholder="소속">
+          <input type="text" id="ap_title" placeholder="직책">
+          <button type="button" class="btn-outline btn-sm" onclick="addInlineParticipant()">추가</button>
+        </div>
+      </div>
+
+      <!-- 일반 예약(남산/VIP)용 필드 -->
+      <div id="normalFields">
+        <div class="row3">
+          <div class="field"><label>일자 <span class="req">*</span></label>
+            <div class="date-wrap">
+              <div class="date-field">
+                <input type="text" id="f_date_text" placeholder="2026년 01월 01일(월)">
+                <div class="cal-btn">📅<input type="date" id="f_date_hidden"></div>
+              </div>
+            </div>
+          </div>
+          <div class="field"><label>인원 수 <span class="req">*</span></label><input type="number" id="f_headcount" min="1"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>시작 시간</label><input type="text" id="f_startTime" placeholder="예: 16:00"></div>
+          <div class="field"><label>종료 시간 <span class="opt">(없으면 비워두세요)</span></label><input type="text" id="f_endTime" placeholder="예: 16:30"></div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <div class="field-row-label"><label style="margin:0;">고객사 참석자</label><span class="count-badge" id="customerCountBadge">0명</span></div>
+            <div class="check-list" id="customerCheckList"></div>
+            <div class="check-list-actions">
+              <button type="button" onclick="toggleAllChecks('customerCheckList', true)">전체선택</button>
+              <button type="button" onclick="toggleAllChecks('customerCheckList', false)">선택해제</button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-row-label"><label style="margin:0;">사내 참석자</label><span class="count-badge" id="internalCountBadge">0명</span></div>
+            <div class="check-list" id="internalCheckList"></div>
+            <div class="check-list-actions">
+              <button type="button" onclick="toggleAllChecks('internalCheckList', true)">전체선택</button>
+              <button type="button" onclick="toggleAllChecks('internalCheckList', false)">선택해제</button>
+            </div>
+          </div>
+        </div>
+        <div id="extraFields"></div>
+        <div class="field"><label>요청사항 <span class="opt">(자유 기재)</span></label><textarea id="f_requestNotes" rows="2" placeholder="예: 고객사 내방에 필요한 정보 알려주시면 대응하겠습니다"></textarea></div>
+      </div>
+
+      <!-- 차량/헬기 배차용 필드 -->
+      <div id="transportFields" style="display:none;">
+        <div class="field"><label>일자 <span class="req">*</span></label>
+          <div class="date-wrap">
+            <div class="date-field">
+              <input type="text" id="t_date_text" placeholder="2026년 01월 01일(월)">
+              <div class="cal-btn">📅<input type="date" id="t_date_hidden"></div>
+            </div>
+          </div>
+        </div>
+        <div class="segment-builder">
+          <h4>구간 목록 — 구간마다 방식(차량/헬기)과 탑승 인원을 지정하세요</h4>
+          <div id="segmentList"></div>
+          <button type="button" class="btn-outline btn-sm" onclick="addSegment()">+ 구간 추가</button>
+        </div>
+        <div class="field" style="margin-top:14px;"><label>요청사항 <span class="opt">(자유 기재)</span></label><textarea id="t_requestNotes" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="addLeg()">이 예약 등록하기</button>
+    </div>
+  </div>
+</div>
+
+<div class="alert-overlay" id="warnOverlay">
+  <div class="alert-box warn">
+    <div class="emoji">⚠️</div>
+    <h3>신청이 접수되었습니다</h3>
+    <p>다만 아래 일정은 <b>D-5일 기준을 초과</b>했습니다. 처리가 지연될 수 있으니 꼭 연락해 주세요.</p>
+    <ul class="leg-warn-list" id="warnLegList"></ul>
+    <div class="contact">📞 교육서비스센터 최부경 선임에게 연락 바랍니다</div>
+    <button onclick="finishAfterAlert('warnOverlay')">확인했습니다</button>
+  </div>
+</div>
+
+<div class="alert-overlay" id="okOverlay">
+  <div class="alert-box ok">
+    <div class="emoji">✅</div>
+    <h3>전체 일정이 정상 접수되었습니다</h3>
+    <p id="okSummary" style="text-align:center;">담당자 확인 후 별도로 확정 안내를 드리겠습니다.</p>
+    <button onclick="finishAfterAlert('okOverlay')">확인</button>
+  </div>
+</div>
+
+<div class="alert-overlay" id="errOverlay">
+  <div class="alert-box warn">
+    <div class="emoji">❌</div>
+    <h3>전송 중 오류가 발생했습니다</h3>
+    <p id="errMsg" style="text-align:center;">잠시 후 다시 시도해 주시거나, 교육서비스센터 최부경 선임에게 문의해 주세요.</p>
+    <button onclick="closeAlert('errOverlay')">확인</button>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmptII-8P8_v-h2g3myHM8Jbr3mTsNhg70757NphqrNM0QgmAVn8jZAXGnWnxNZvyiHw/exec";
+
+/* ====================== 날짜 유틸 ====================== */
+const WEEKDAY_KR = ['일','월','화','수','목','금','토'];
+function formatDateKR(iso){
+  if(!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  if(isNaN(d.getTime())) return '';
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}년 ${m}월 ${day}일(${WEEKDAY_KR[d.getDay()]})`;
+}
+function parseDateTextToISO(text){
+  if(!text) return null;
+  const digits = text.replace(/[^0-9]/g, '');
+  if(digits.length === 8){
+    const y = digits.slice(0,4), m = digits.slice(4,6), d = digits.slice(6,8);
+    const iso = `${y}-${m}-${d}`;
+    const dt = new Date(iso + 'T00:00:00');
+    if(!isNaN(dt.getTime())) return iso;
+  }
+  const tryDate = new Date(text);
+  if(!isNaN(tryDate.getTime())){
+    return tryDate.toISOString().slice(0,10);
+  }
+  return null;
+}
+function wireDateField(textId, hiddenId){
+  const textEl = document.getElementById(textId);
+  const hiddenEl = document.getElementById(hiddenId);
+  hiddenEl.addEventListener('change', () => {
+    if(hiddenEl.value){
+      textEl.value = formatDateKR(hiddenEl.value);
+      textEl.dataset.iso = hiddenEl.value;
+    }
+  });
+  textEl.addEventListener('blur', () => {
+    const iso = parseDateTextToISO(textEl.value);
+    if(iso){
+      textEl.value = formatDateKR(iso);
+      textEl.dataset.iso = iso;
+      hiddenEl.value = iso;
+    } else if(textEl.value.trim() !== ''){
+      // 파싱 실패 시 그대로 두되 데이터는 비움
+      textEl.dataset.iso = '';
+    }
+  });
+}
+function getDateISO(textId){
+  const el = document.getElementById(textId);
+  return el.dataset.iso || parseDateTextToISO(el.value) || '';
+}
+function openDatePicker(hiddenId){
+  const el = document.getElementById(hiddenId);
+  if(el.showPicker){ el.showPicker(); } else { el.focus(); }
+}
+function prefillDateFromBase(textId, hiddenId){
+  const baseIso = getDateISO('b_date_text');
+  if(baseIso){
+    document.getElementById(textId).value = formatDateKR(baseIso);
+    document.getElementById(textId).dataset.iso = baseIso;
+    document.getElementById(hiddenId).value = baseIso;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  wireDateField('b_date_text', 'b_date_hidden');
+  wireDateField('f_date_text', 'f_date_hidden');
+  wireDateField('t_date_text', 't_date_hidden');
+  document.querySelectorAll('.cal-btn').forEach(btn => {
+    const hiddenInput = btn.querySelector('input[type=date]');
+    btn.addEventListener('click', (e) => { if(e.target !== hiddenInput) openDatePicker(hiddenInput.id); });
+  });
+  addParticipantRow();
+  addParticipantRow();
+});
+
+/* ====================== 참석자 테이블 ====================== */
+let pRowSeq = 0;
+const DEFAULT_INTERNAL_COMPANY = 'LG전자';
+function addParticipantRow(prefill){
+  const tbody = document.getElementById('ptableBody');
+  const tr = document.createElement('tr');
+  const rid = 'prow_' + (pRowSeq++);
+  tr.dataset.rid = rid;
+  tr.innerHTML = `
+    <td><select class="p-type" onchange="onTypeChange(this)">
+      <option value="생산기술원">생산기술원</option>
+      <option value="고객사">고객사</option>
+    </select></td>
+    <td><input class="p-company" placeholder="회사명" value="${DEFAULT_INTERNAL_COMPANY}" readonly></td>
+    <td><input class="p-name" placeholder="이름" onpaste="handlePTablePaste(event, this, 2)"></td>
+    <td><input class="p-dept" placeholder="소속" onpaste="handlePTablePaste(event, this, 3)"></td>
+    <td><input class="p-title" placeholder="직책" onpaste="handlePTablePaste(event, this, 4)"></td>
+    <td class="col-del"><button class="ptable-row-del" onclick="this.closest('tr').remove()">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+  const typeSel = tr.querySelector('.p-type');
+  typeSel.addEventListener('paste', (e) => handlePTablePaste(e, typeSel, 0));
+  tr.querySelector('.p-company').addEventListener('paste', (e) => handlePTablePaste(e, tr.querySelector('.p-company'), 1));
+  if(prefill){
+    typeSel.value = prefill.type || '생산기술원';
+    tr.querySelector('.p-name').value = prefill.name || '';
+    tr.querySelector('.p-dept').value = prefill.dept || '';
+    tr.querySelector('.p-title').value = prefill.title || '';
+    onTypeChange(typeSel);
+    if(prefill.type === '고객사') tr.querySelector('.p-company').value = prefill.company || '';
+  }
+}
+function onTypeChange(selectEl){
+  const tr = selectEl.closest('tr');
+  const companyInput = tr.querySelector('.p-company');
+  if(selectEl.value === '고객사'){
+    companyInput.readOnly = false;
+    if(companyInput.value === DEFAULT_INTERNAL_COMPANY) companyInput.value = '';
+  } else {
+    companyInput.readOnly = true;
+    companyInput.value = DEFAULT_INTERNAL_COMPANY;
+  }
+}
+function getParticipantRows(){
+  return Array.from(document.querySelectorAll('#ptableBody tr'));
+}
+function setCellValue(tr, colIndex, value){
+  if(colIndex === 0){
+    const sel = tr.querySelector('.p-type');
+    sel.value = (value.includes('고객') ) ? '고객사' : '생산기술원';
+    onTypeChange(sel);
+  } else if(colIndex === 1){
+    const sel = tr.querySelector('.p-type');
+    if(sel.value !== '고객사'){ sel.value = '고객사'; onTypeChange(sel); }
+    tr.querySelector('.p-company').value = value;
+  } else if(colIndex === 2){
+    tr.querySelector('.p-name').value = value;
+  } else if(colIndex === 3){
+    tr.querySelector('.p-dept').value = value;
+  } else if(colIndex === 4){
+    tr.querySelector('.p-title').value = value;
+  }
+}
+function handlePTablePaste(e, el, colIndex){
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  if(!text) return;
+  if(!text.includes('\t') && !text.includes('\n')) return; // 단일 셀 붙여넣기는 기본 동작
+  e.preventDefault();
+  let rows = text.split(/\r?\n/);
+  if(rows.length && rows[rows.length-1] === '') rows.pop();
+  const startTr = el.closest('tr');
+  let startIdx = getParticipantRows().indexOf(startTr);
+  rows.forEach((rowText, i) => {
+    let targetIdx = startIdx + i;
+    while(targetIdx >= getParticipantRows().length){
+      addParticipantRow();
+    }
+    const tr = getParticipantRows()[targetIdx];
+    const cols = rowText.split('\t');
+    cols.forEach((val, j) => {
+      setCellValue(tr, colIndex + j, val.trim());
+    });
+  });
+}
+function getParticipants(){
+  return getParticipantRows().map(tr => ({
+    type: tr.querySelector('.p-type').value,
+    company: tr.querySelector('.p-company').value.trim(),
+    name: tr.querySelector('.p-name').value.trim(),
+    dept: tr.querySelector('.p-dept').value.trim(),
+    title: tr.querySelector('.p-title').value.trim()
+  })).filter(p => p.name);
+}
+function formatParticipant(p){
+  const deptTitle = [p.dept, p.title].filter(Boolean).join(' ');
+  if(p.type === '고객사') return `${p.name}(${deptTitle||'-'}) - ${p.company||'고객사'}`;
+  return `${p.name}(${deptTitle||'-'})`;
+}
+
+/* ====================== 모달 내 참석자 추가(미니폼) ====================== */
+function onApTypeChange(){
+  const type = document.getElementById('ap_type').value;
+  const companyInput = document.getElementById('ap_company');
+  if(type === '고객사'){
+    companyInput.readOnly = false;
+    if(companyInput.value === DEFAULT_INTERNAL_COMPANY) companyInput.value = '';
+  } else {
+    companyInput.readOnly = true;
+    companyInput.value = DEFAULT_INTERNAL_COMPANY;
+  }
+}
+function captureCheckedSet(containerId){
+  const wrap = document.getElementById(containerId);
+  const participants = wrap._participants || [];
+  const set = new Set();
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    const idx = parseInt(cb.dataset.idx);
+    if(cb.checked && participants[idx]) set.add(formatParticipant(participants[idx]));
+  });
+  return set;
+}
+function addInlineParticipant(){
+  const type = document.getElementById('ap_type').value;
+  const name = document.getElementById('ap_name').value.trim();
+  if(!name){ alert('이름을 입력해 주세요.'); return; }
+  const dept = document.getElementById('ap_dept').value.trim();
+  const title = document.getElementById('ap_title').value.trim();
+  const company = type === '고객사' ? document.getElementById('ap_company').value.trim() : DEFAULT_INTERNAL_COMPANY;
+
+  addParticipantRow({ type, company, name, dept, title });
+
+  document.getElementById('ap_name').value = '';
+  document.getElementById('ap_dept').value = '';
+  document.getElementById('ap_title').value = '';
+  document.getElementById('ap_type').value = '생산기술원';
+  onApTypeChange();
+
+  const participants = getParticipants();
+  const newIdx = participants.length - 1;
+  const newKey = formatParticipant(participants[newIdx]);
+
+  if(document.getElementById('normalFields').style.display !== 'none'){
+    const custSet = captureCheckedSet('customerCheckList'); custSet.add(newKey);
+    const intSet = captureCheckedSet('internalCheckList'); intSet.add(newKey);
+    renderCheckList('customerCheckList', participants.filter(p => p.type === '고객사'), 'customerCountBadge', custSet);
+    renderCheckList('internalCheckList', participants.filter(p => p.type === '생산기술원'), 'internalCountBadge', intSet);
+  }
+
+  if(document.getElementById('transportFields').style.display !== 'none'){
+    segments.forEach(seg => { if(!seg.passengerIdx.includes(newIdx)) seg.passengerIdx.push(newIdx); });
+    renderSegments();
+  }
+}
+
+/* ====================== 체크리스트(참석자 선택) ====================== */
+function renderCheckList(containerId, participants, countBadgeId, checkedSet){
+  const wrap = document.getElementById(containerId);
+  const useDefaultAll = (checkedSet === undefined || checkedSet === null);
+  wrap.innerHTML = '';
+  if(participants.length === 0){
+    wrap.innerHTML = '<div class="empty">등록된 참석자가 없습니다. 위 "+ 참석자 추가" 또는 상단 "참석자 정보"에서 먼저 추가해 주세요.</div>';
+  } else {
+    participants.forEach((p, idx) => {
+      const key = formatParticipant(p);
+      const isChecked = useDefaultAll ? true : checkedSet.has(key);
+      const label = document.createElement('label');
+      label.innerHTML = `<input type="checkbox" data-idx="${idx}" ${isChecked ? 'checked' : ''} onchange="updateCountBadge('${containerId}','${countBadgeId}')"> ${escapeHtml(key)}`;
+      wrap.appendChild(label);
+    });
+  }
+  wrap._participants = participants;
+  updateCountBadge(containerId, countBadgeId);
+}
+function updateCountBadge(containerId, countBadgeId){
+  if(!countBadgeId) return;
+  const n = document.querySelectorAll('#' + containerId + ' input[type=checkbox]:checked').length;
+  const badge = document.getElementById(countBadgeId);
+  if(badge) badge.textContent = n + '명';
+}
+function getCheckedLabels(containerId){
+  const wrap = document.getElementById(containerId);
+  const participants = wrap._participants || [];
+  const checked = Array.from(wrap.querySelectorAll('input[type=checkbox]:checked')).map(cb => participants[parseInt(cb.dataset.idx)]);
+  return checked.map(formatParticipant).join(', ');
+}
+function toggleAllChecks(containerId, value){
+  document.querySelectorAll('#' + containerId + ' input[type=checkbox]').forEach(cb => cb.checked = value);
+  const badgeId = containerId === 'customerCheckList' ? 'customerCountBadge' : 'internalCountBadge';
+  updateCountBadge(containerId, badgeId);
+}
+
+/* ====================== 카테고리 정의 ====================== */
+const CATEGORY_META = {
+  nslc_meal: {
+    label: "남산리더십센터 - 식사 예약", icon: "🏛️", kind: "normal",
+    extra: [
+      { id: "menu", label: "메뉴 / 특이사항(알러지 등)", type: "text" },
+      { id: "seating", label: "좌석 배치 요청", type: "text" },
+    ]
+  },
+  nslc_room: {
+    label: "남산리더십센터 - 회의실 예약", icon: "🏛️", kind: "normal",
+    extra: [
+      { id: "avNeeded", label: "영상장비 필요 여부", type: "select", options: ["필요 없음", "필요"] },
+    ]
+  },
+  vip_restaurant: {
+    label: "VIP식당", icon: "🍽️", kind: "normal",
+    extra: [
+      { id: "menu", label: "메뉴 / 특이사항 (직접입력)", type: "text" },
+      { id: "guestInfo", label: "접대 대상 정보 (직접입력)", type: "text" },
+    ]
+  },
+  transport: { label: "차량 / 헬기 배차", icon: "🚗🚁", kind: "transport", extra: [] }
+};
+
+let currentCategory = null;
+let tripLegs = [];
+let groupId = null;
+let segments = [];
+
+function genGroupId(){ return 'TRIP-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7); }
+
+function getBaseInfo(){
+  return {
+    requesterName: document.getElementById('b_requesterName').value.trim(),
+    requesterDept: document.getElementById('b_requesterDept').value.trim(),
+    requesterContact: document.getElementById('b_requesterContact').value.trim(),
+    purpose: document.getElementById('b_purpose').value.trim(),
+    headcountAll: document.getElementById('b_headcount').value
+  };
+}
+
+function openModal(category){
+  const base = getBaseInfo();
+  if(!base.requesterName || !base.requesterDept || !base.requesterContact || !base.purpose || !base.headcountAll || !getDateISO('b_date_text')){
+    alert('먼저 "1. 기본 정보"를 모두 입력해 주세요. (미팅 일정 포함)');
+    return;
+  }
+
+  currentCategory = category;
+  const meta = CATEGORY_META[category];
+  document.getElementById('modalTitle').textContent = meta.label + " 신청서";
+
+  document.getElementById('ap_type').value = '생산기술원';
+  document.getElementById('ap_company').value = DEFAULT_INTERNAL_COMPANY;
+  document.getElementById('ap_company').readOnly = true;
+  document.getElementById('ap_name').value = '';
+  document.getElementById('ap_dept').value = '';
+  document.getElementById('ap_title').value = '';
+
+  const isTransport = meta.kind === 'transport';
+  document.getElementById('normalFields').style.display = isTransport ? 'none' : 'block';
+  document.getElementById('transportFields').style.display = isTransport ? 'block' : 'none';
+
+  if(isTransport){
+    document.getElementById('t_date_text').value = '';
+    document.getElementById('t_date_hidden').value = '';
+    document.getElementById('t_requestNotes').value = '';
+    prefillDateFromBase('t_date_text', 't_date_hidden');
+    segments = [{ origin:'', destination:'', mode:'차량', time:'', passengerIdx: getParticipants().map((_,i)=>i) }];
+    renderSegments();
+  } else {
+    document.getElementById('f_date_text').value = '';
+    document.getElementById('f_date_hidden').value = '';
+    document.getElementById('f_headcount').value = base.headcountAll;
+    document.getElementById('f_startTime').value = '';
+    document.getElementById('f_endTime').value = '';
+    document.getElementById('f_requestNotes').value = '';
+    prefillDateFromBase('f_date_text', 'f_date_hidden');
+
+    const participants = getParticipants();
+    renderCheckList('customerCheckList', participants.filter(p => p.type === '고객사'), 'customerCountBadge');
+    renderCheckList('internalCheckList', participants.filter(p => p.type === '생산기술원'), 'internalCountBadge');
+
+    const extraWrap = document.getElementById('extraFields');
+    extraWrap.innerHTML = '';
+    meta.extra.forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'field';
+      let inputHtml = '';
+      if(f.type === 'select'){
+        inputHtml = `<select id="extra_${f.id}">` + f.options.map(o => `<option value="${o}">${o}</option>`).join('') + `</select>`;
+      } else {
+        inputHtml = `<input type="text" id="extra_${f.id}" placeholder="${f.placeholder||''}">`;
+      }
+      div.innerHTML = `<label>${f.label}</label>${inputHtml}`;
+      extraWrap.appendChild(div);
+    });
+  }
+
+  document.getElementById('overlay').classList.add('active');
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('active');
+  currentCategory = null;
+}
+
+/* ====================== 차량/헬기 구간 빌더 ====================== */
+function addSegment(){
+  segments.push({ origin:'', destination:'', mode:'차량', time:'', passengerIdx: getParticipants().map((_,i)=>i) });
+  renderSegments();
+}
+function removeSegment(idx){
+  if(segments.length <= 1){ alert('최소 1개 구간은 필요합니다.'); return; }
+  segments.splice(idx, 1);
+  renderSegments();
+}
+function updateSegmentField(idx, field, value){
+  segments[idx][field] = value;
+}
+function toggleSegmentPassenger(idx, pIdx, checked){
+  const seg = segments[idx];
+  if(checked){
+    if(!seg.passengerIdx.includes(pIdx)) seg.passengerIdx.push(pIdx);
+  } else {
+    seg.passengerIdx = seg.passengerIdx.filter(i => i !== pIdx);
+  }
+}
+function renderSegments(){
+  const wrap = document.getElementById('segmentList');
+  wrap.innerHTML = '';
+  const participants = getParticipants();
+  segments.forEach((seg, idx) => {
+    const card = document.createElement('div');
+    card.className = 'segment-card';
+    const passengerOptions = participants.map((p, pIdx) => {
+      const checked = seg.passengerIdx.includes(pIdx) ? 'checked' : '';
+      return `<label><input type="checkbox" ${checked} onchange="toggleSegmentPassenger(${idx}, ${pIdx}, this.checked)"> ${escapeHtml(formatParticipant(p))}</label>`;
+    }).join('') || '<div class="empty">등록된 참석자가 없습니다.</div>';
+
+    card.innerHTML = `
+      <button type="button" class="seg-remove" onclick="removeSegment(${idx})">✕</button>
+      <div class="seg-label">구간 ${idx+1}</div>
+      <div class="row4">
+        <div class="field" style="margin-bottom:6px;"><label style="font-size:11.5px;">출발지</label>
+          <input type="text" value="${escapeAttr(seg.origin)}" oninput="updateSegmentField(${idx},'origin',this.value)" placeholder="예: 트윈(평택)"></div>
+        <div class="field" style="margin-bottom:6px;"><label style="font-size:11.5px;">목적지</label>
+          <input type="text" value="${escapeAttr(seg.destination)}" oninput="updateSegmentField(${idx},'destination',this.value)" placeholder="예: 남산리더십센터"></div>
+        <div class="field" style="margin-bottom:6px;"><label style="font-size:11.5px;">방식</label>
+          <select onchange="updateSegmentField(${idx},'mode',this.value)">
+            <option value="차량" ${seg.mode==='차량'?'selected':''}>차량</option>
+            <option value="헬기" ${seg.mode==='헬기'?'selected':''}>헬기</option>
+          </select></div>
+        <div class="field" style="margin-bottom:6px;"><label style="font-size:11.5px;">시간</label>
+          <input type="text" value="${escapeAttr(seg.time)}" oninput="updateSegmentField(${idx},'time',this.value)" placeholder="예: 14:30"></div>
+      </div>
+      <div class="field" style="margin-bottom:0;"><label style="font-size:11.5px;">탑승 인원</label>
+        <div class="check-list" style="max-height:120px;">${passengerOptions}</div>
+      </div>
+    `;
+    wrap.appendChild(card);
+  });
+}
+function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
+function escapeHtml(s){
+  if(!s) return '';
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ====================== 리드타임 ====================== */
+function isLeadtimeViolated(useDateStr){
+  if(!useDateStr) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const useDate = new Date(useDateStr + 'T00:00:00');
+  if(isNaN(useDate.getTime())) return false;
+  const diffDays = Math.round((useDate - today) / (1000*60*60*24));
+  return diffDays < 5;
+}
+
+/* ====================== 일정 추가 ====================== */
+function addLeg(){
+  const base = getBaseInfo();
+  const meta = CATEGORY_META[currentCategory];
+  const isTransport = meta.kind === 'transport';
+
+  if(isTransport){
+    const useDate = getDateISO('t_date_text');
+    if(!useDate){ alert('일자를 입력해 주세요.'); return; }
+    const incomplete = segments.some(s => !s.origin || !s.destination);
+    if(incomplete){ alert('모든 구간의 출발지/목적지를 입력해 주세요.'); return; }
+    const participants = getParticipants();
+    const segForSave = segments.map(s => ({
+      origin: s.origin, destination: s.destination, mode: s.mode, time: s.time,
+      passengers: s.passengerIdx.map(i => participants[i]).filter(Boolean).map(formatParticipant)
+    }));
+    const leadtimeWarning = isLeadtimeViolated(useDate);
+    tripLegs.push({
+      category: meta.label, icon: meta.icon,
+      requesterName: base.requesterName, requesterDept: base.requesterDept, requesterContact: base.requesterContact,
+      meetingPurpose: base.purpose,
+      useDate, startTime: '', endTime: '',
+      headcount: segForSave.reduce((max,s)=>Math.max(max, s.passengers.length),0) || base.headcountAll,
+      customerAttendees: '', internalAttendees: '',
+      requestNotes: document.getElementById('t_requestNotes').value.trim(),
+      details: {}, segments: segForSave,
+      leadtimeWarning
+    });
+  } else {
+    const useDate = getDateISO('f_date_text');
+    const headcount = document.getElementById('f_headcount').value;
+    if(!useDate || !headcount){ alert('일자와 인원 수를 입력해 주세요.'); return; }
+
+    const details = {};
+    meta.extra.forEach(f => {
+      const el = document.getElementById('extra_' + f.id);
+      if(el) details[f.id] = el.value;
+    });
+
+    const leadtimeWarning = isLeadtimeViolated(useDate);
+    tripLegs.push({
+      category: meta.label, icon: meta.icon,
+      requesterName: base.requesterName, requesterDept: base.requesterDept, requesterContact: base.requesterContact,
+      meetingPurpose: base.purpose,
+      useDate,
+      startTime: document.getElementById('f_startTime').value.trim(),
+      endTime: document.getElementById('f_endTime').value.trim(),
+      headcount,
+      customerAttendees: getCheckedLabels('customerCheckList'),
+      internalAttendees: getCheckedLabels('internalCheckList'),
+      requestNotes: document.getElementById('f_requestNotes').value.trim(),
+      details, segments: [],
+      leadtimeWarning
+    });
+  }
+
+  closeModal();
+  renderTimeline();
+}
+
+function removeLeg(idx){ tripLegs.splice(idx, 1); renderTimeline(); }
+
+function renderTimeline(){
+  const wrap = document.getElementById('timeline');
+  wrap.innerHTML = '';
+  if(tripLegs.length === 0){
+    wrap.innerHTML = '<div class="empty-timeline" id="emptyTimeline">아직 추가된 일정이 없습니다. 위 카드를 눌러 일정을 추가해 주세요.</div>';
+  } else {
+    tripLegs.forEach((leg, idx) => {
+      if(idx > 0){ const c = document.createElement('div'); c.className = 'connector'; wrap.appendChild(c); }
+      const item = document.createElement('div');
+      item.className = 'leg-item';
+      const warnTag = leg.leadtimeWarning ? `<span class="leg-tag warn">D-5 초과</span>` : '';
+      let segHtml = '';
+      if(leg.segments && leg.segments.length){
+        segHtml = '<div class="seg-list">' + leg.segments.map((s,i) =>
+          `<div class="seg-row">· 구간${i+1} [${s.mode}]: <b>${escapeHtml(s.origin)}</b> → <b>${escapeHtml(s.destination)}</b>${s.time?(' ('+s.time+')'):''}${s.passengers && s.passengers.length ? (' / 탑승: '+s.passengers.map(escapeHtml).join(', ')) : ''}</div>`
+        ).join('') + '</div>';
+      }
+      const attendeeLine = [leg.customerAttendees && ('고객사: '+leg.customerAttendees), leg.internalAttendees && ('사내: '+leg.internalAttendees)].filter(Boolean).join(' · ');
+      item.innerHTML = `
+        <div class="leg-num">${idx+1}</div>
+        <div class="leg-body">
+          <p class="leg-title">${leg.icon} ${escapeHtml(leg.category)} ${warnTag}</p>
+          <div class="leg-meta">
+            ${formatDateKR(leg.useDate)} ${leg.startTime||''}${leg.endTime?('~'+leg.endTime):''} · 인원 ${leg.headcount}명
+            ${attendeeLine ? '<br>참석자 — ' + escapeHtml(attendeeLine) : ''}
+            ${leg.requestNotes ? '<br>요청사항 — ' + escapeHtml(leg.requestNotes) : ''}
+          </div>
+          ${segHtml}
+        </div>
+        <button class="leg-remove" onclick="removeLeg(${idx})" title="삭제">✕</button>
+      `;
+      wrap.appendChild(item);
+    });
+  }
+  const btn = document.getElementById('submitAllBtn');
+  btn.textContent = `전체 일정 제출하기 (${tripLegs.length}건)`;
+  btn.disabled = tripLegs.length === 0;
+}
+
+function clearAllLegs(){
+  if(tripLegs.length && !confirm('추가된 모든 일정을 초기화할까요?')) return;
+  tripLegs = []; groupId = null; renderTimeline();
+}
+
+function submitAllLegs(){
+  if(tripLegs.length === 0) return;
+  if(!groupId) groupId = genGroupId();
+  const payloadLegs = tripLegs.map(l => Object.assign({}, l, { groupId }));
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payloadLegs)
+  })
+  .then(() => {
+    const warnLegs = tripLegs.filter(l => l.leadtimeWarning);
+    if(warnLegs.length > 0){
+      const list = document.getElementById('warnLegList');
+      list.innerHTML = warnLegs.map(l => `<li>${l.icon} ${escapeHtml(l.category)} — ${formatDateKR(l.useDate)}</li>`).join('');
+      document.getElementById('warnOverlay').classList.add('active');
+    } else {
+      document.getElementById('okSummary').textContent = `총 ${tripLegs.length}건의 일정이 접수되었습니다.`;
+      document.getElementById('okOverlay').classList.add('active');
+    }
+  })
+  .catch(err => {
+    document.getElementById('errMsg').textContent = '전송 중 오류: ' + err.message + ' — 교육서비스센터 최부경 선임에게 문의해 주세요.';
+    document.getElementById('errOverlay').classList.add('active');
+  });
+}
+
+function finishAfterAlert(id){
+  closeAlert(id); tripLegs = []; groupId = null; renderTimeline();
+}
+function closeAlert(id){ document.getElementById(id).classList.remove('active'); }
+</script>
+
+</body>
+</html>
