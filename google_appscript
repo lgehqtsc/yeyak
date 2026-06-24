@@ -1,0 +1,127 @@
+/**
+ * 영업지원 신청 시스템 - Apps Script 백엔드 (v4)
+ *
+ * [v4 변경점]
+ * - 기본정보에서 이용임원/VIP 필드 제거 (참석자 정보 테이블에서 모든 인원을 관리)
+ * - 차량배차 + 헬기신청을 "차량/헬기 배차" 하나로 통합, 구간별(방식+탑승인원) 입력
+ * - 모든 일정에 있던 공통 "차량배차 필요여부" 질문 제거
+ * - 미팅목적은 기본정보에서 한 번만 입력 (모든 행에 공통 기록)
+ * - 전체 일정 제출 시 bugyeong.choi@lge.com 으로 구글시트 URL이 담긴 알림 메일 자동 발송
+ *
+ * [배포 방법]
+ * 1. 구글 시트를 새로 만들고, 이 스크립트를 [확장 프로그램 > Apps Script]에 붙여넣기
+ *    (가능하면 bugyeong.choi@lge.com 계정으로 직접 만들고 배포하세요 — 메일 발신자 표시와 일치시키기 위함)
+ * 2. setupSheet() 함수를 한 번 실행 → "신청내역" 탭과 헤더 자동 생성
+ *    이때 메일 발송 권한(Gmail 전송 권한) 승인 창이 뜨면 승인해야 추후 메일이 정상 발송됩니다
+ * 3. [배포 > 새 배포] > 유형: 웹 앱 / 실행할 사용자: 나 / 액세스: 모든 사용자
+ * 4. 배포 후 나오는 웹 앱 URL을 index_v4.html의 SCRIPT_URL 값으로 입력
+ */
+
+const SHEET_NAME = "신청내역";
+
+const HEADERS = [
+  "그룹ID", "순번", "타임스탬프", "신청구분",
+  "요청자명", "요청자소속", "요청자연락처", "미팅목적",
+  "이용일자", "이용시작시간", "이용종료시간", "인원수",
+  "고객사참석자", "사내참석자", "요청사항",
+  "상세정보", "배차세그먼트",
+  "리드타임경고여부", "처리상태", "비고"
+];
+
+function setupSheet() {
+  const sheet = getOrCreateSheet_();
+  sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold").setBackground("#1F3864").setFontColor("#FFFFFF");
+  sheet.setFrozenRows(1);
+  sheet.autoResizeColumns(1, HEADERS.length);
+}
+
+function doPost(e) {
+  try {
+    const sheet = getOrCreateSheet_();
+    const body = JSON.parse(e.postData.contents);
+
+    let groupId, legs;
+    if (Array.isArray(body)) {
+      groupId = body.length ? (body[0].groupId || Utilities.getUuid()) : Utilities.getUuid();
+      legs = body;
+    } else if (body.legs && Array.isArray(body.legs)) {
+      groupId = body.groupId || Utilities.getUuid();
+      legs = body.legs;
+    } else {
+      groupId = body.groupId || Utilities.getUuid();
+      legs = [body];
+    }
+
+    legs.forEach((data, idx) => {
+      const row = [
+        groupId,
+        idx + 1,
+        new Date(),
+        data.category || "",
+        data.requesterName || "",
+        data.requesterDept || "",
+        data.requesterContact || "",
+        data.meetingPurpose || "",
+        data.useDate || "",
+        data.startTime || "",
+        data.endTime || "",
+        data.headcount || "",
+        data.customerAttendees || "",
+        data.internalAttendees || "",
+        data.requestNotes || "",
+        JSON.stringify(data.details || {}),
+        JSON.stringify(data.segments || []),
+        data.leadtimeWarning ? "Y" : "N",
+        "접수",
+        ""
+      ];
+      sheet.appendRow(row);
+    });
+
+    try {
+      sendNotificationEmail_();
+    } catch (mailErr) {
+      // 메일 발송 실패는 신청 접수 자체를 막지 않음 (시트 기록은 이미 완료됨)
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ result: "success", groupId, count: legs.length }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ result: "error", message: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * 신청 접수 시 알림 메일 발송
+ * 주의: MailApp은 "이 Apps Script를 배포/실행하는 구글 계정"으로 메일을 보냅니다.
+ * bugyeong.choi@lge.com 계정으로 직접 배포해야 발신자가 bugyeong.choi@lge.com으로 보입니다.
+ * 다른 계정으로 배포할 경우, 발신자는 그 계정이 되고 표시 이름만 "최부경"으로 보입니다.
+ */
+function sendNotificationEmail_() {
+  const sheetUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
+  MailApp.sendEmail({
+    to: "bugyeong.choi@lge.com",
+    subject: "생산기술원 영업지원 신청",
+    body: sheetUrl,
+    name: "최부경"
+  });
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getOrCreateSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold").setBackground("#1F3864").setFontColor("#FFFFFF");
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
